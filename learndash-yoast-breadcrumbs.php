@@ -3,7 +3,7 @@
 /**
  * Plugin Name:     LearnDash Yoast SEO Breadcrumbs
  * Plugin URI:      https://bizbudding.com
- * Description:     Use the correct course > lesson > topic hierarchy in Yoast SEO breadcrumbs.
+ * Description:     Use the correct LearnDash Course > Lesson > Topic hierarchy in Yoast SEO breadcrumbs.
  * Version:         1.0.0
  *
  * Author:          BizBudding, Mike Hemberger
@@ -46,8 +46,7 @@ final class LD_Yoast_Breadcrumbs {
 			self::$instance = new LD_Yoast_Breadcrumbs;
 			// Methods
 			self::$instance->setup_constants();
-			self::$instance->includes();
-			self::$instance->setup();
+			self::$instance->run();
 		}
 		return self::$instance;
 	}
@@ -113,7 +112,7 @@ final class LD_Yoast_Breadcrumbs {
 			define( 'LD_YOAST_BREADCRUMBS_PLUGIN_FILE', __FILE__ );
 		}
 
-		// Plugin Base Name
+		// Plugin Base Name.
 		if ( ! defined( 'LD_YOAST_BREADCRUMBS_BASENAME' ) ) {
 			define( 'LD_YOAST_BREADCRUMBS_BASENAME', dirname( plugin_basename( __FILE__ ) ) );
 		}
@@ -121,17 +120,11 @@ final class LD_Yoast_Breadcrumbs {
 	}
 
 	/**
-	 * Include required files.
+	 * Run this thing.
 	 *
-	 * @access  private
-	 * @since   1.0.0
 	 * @return  void
 	 */
-	private function includes() {
-		foreach ( glob( LD_YOAST_BREADCRUMBS_INCLUDES_DIR . '*.php' ) as $file ) { include $file; }
-	}
-
-	public function setup() {
+	public function run() {
 
 		add_action( 'admin_init',             array( $this, 'updater' ) );
 		add_filter( 'wpseo_breadcrumb_links', array( $this, 'breadcrumb_links' ) );
@@ -151,9 +144,69 @@ final class LD_Yoast_Breadcrumbs {
 		if ( ! class_exists( 'Puc_v4_Factory' ) ) {
 			require_once LD_YOAST_BREADCRUMBS_INCLUDES_DIR . 'vendor/plugin-update-checker/plugin-update-checker.php'; // 4.4
 		}
-		$updater = Puc_v4_Factory::buildUpdateChecker( 'https://github.com/maithemewp/mai-theme-engine/', __FILE__, 'textdomain' );
+		$updater = Puc_v4_Factory::buildUpdateChecker( 'https://github.com/bizbudding/learndash-yoast-breadcrumbs', __FILE__, 'learndash-yoast-breadcrumbs' );
 	}
 
+	/**
+	 * Convert Yoast Breadcrumbs to follow LearnDash hierarchy.
+	 *
+	 * @param   array  $link  The breadcrumbs array.
+	 *
+	 * @return  array  The modified breadcrumbs array.
+	 */
+	public function breadcrumb_links( $links ) {
+
+		// Bail if not a single learndash post.
+		if ( ! is_singular( array( 'sfwd-courses', 'sfwd-lessons', 'sfwd-quiz', 'sfwd-topic', 'sfwd-certificates' ) ) ) {
+			return $links;
+		}
+
+		$items = array();
+
+		// Don't add course link to the course page.
+		if ( ! is_singular( 'sfwd-courses' ) ) {
+
+			// Add course link.
+			$course_id = learndash_get_course_id( get_the_ID() );
+			if ( $course_id ) {
+				$items[] = array( 'id' => $course_id );
+			}
+
+		}
+
+		// Don't add lesson link to the lesson page.
+		if ( ! is_singular( 'sfwd-lessons' ) ) {
+
+			// Add lesson link.
+			$lesson_id = learndash_get_lesson_id( get_the_ID() );
+			if ( $lesson_id ) {
+				$items[] = array( 'id' => $lesson_id );
+			}
+
+		}
+
+		// Bail if no items.
+		if ( ! $items ) {
+			return $links;
+		}
+
+		// Remove last item, and store it.
+		$last = array_pop( $links );
+
+		// Merge existing with LearnDash items.
+		$links = array_merge( $links, $items );
+
+		// Add the last item back.
+		$links[] = $last;
+
+		return $links;
+	}
+
+	/**
+	 * Flush permalinks just incase they get in the way of breadcrumb links.
+	 *
+	 * @return  void
+	 */
 	public function activate() {
 		flush_rewrite_rules();
 	}

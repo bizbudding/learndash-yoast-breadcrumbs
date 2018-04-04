@@ -1,2 +1,2 @@
 # LearnDash Yoast SEO Breadcrumbs
-Use the correct course > lesson > topic hierarchy in Yoast SEO breadcrumbs.
+Use the correct LearnDash Course > Lesson > Topic hierarchy in Yoast SEO breadcrumbs.
